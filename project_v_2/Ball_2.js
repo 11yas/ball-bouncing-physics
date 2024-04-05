@@ -25,7 +25,7 @@ class Ball {
   }
 
   update() {
-    this.dy += 0.098;
+    this.dy += 0.1;
 
     this.dx *= (1 - 0.01 * this.mass);
 
@@ -59,7 +59,7 @@ class Ball {
     const distanceY = this.y - otherBall.y;
     const distance = Math.sqrt(distanceX * distanceX + distanceY * distanceY);
 
-    const minDistance = this.radius + otherBall.radius;
+    const minDistance = this.radius + otherBall.radius + 2;
 
     if (distance < minDistance) {
       const angle = Math.atan2(distanceY, distanceX);
@@ -106,7 +106,7 @@ function init() {
     const x = Math.random() * canvas.width;
     const y = Math.random() * canvas.height / 2;
     const radius = Math.random() * 10 + 10;
-    const mass = Math.random() * 3 + 3;
+    const mass = Math.random() * 0.1 + 0.9;
     const color = `rgb(${Math.floor(Math.random() * 256)}, ${Math.floor(Math.random() * 256)}, ${Math.floor(Math.random() * 256)})`;
     balls.push(new Ball(x, y, radius, mass, color));
   }
@@ -124,10 +124,32 @@ function animate() {
 }
 
 // Add mouse click event to launch a ball
-canvas.addEventListener('click', (event) => {
-  const angle = Math.atan2(event.clientY - balls[0].y, event.clientX - balls[0].x);
-  balls[0].launch(angle, 5); // Launch speed can be adjusted
-});
+canvas.addEventListener('mousedown', mouseDownHandler);
+canvas.addEventListener('mouseup', mouseUpHandler);
+
+let startX, startY, endX, endY;
+let isDragging = false;
+
+function mouseDownHandler(event) {
+  startX = event.clientX;
+  startY = event.clientY;
+  isDragging = true;
+}
+
+function mouseUpHandler(event) {
+  if (isDragging) {
+    endX = event.clientX;
+    endY = event.clientY;
+
+    const angle = Math.atan2(endY - startY, endX - startX);
+    const distance = Math.sqrt((endX - startX) ** 2 + (endY - startY) ** 2);
+    const launchSpeed = distance * 0.05; // Adjust the launch speed factor as needed
+
+    balls[0].launch(angle, launchSpeed);
+
+    isDragging = false;
+  }
+}
 
 init();
 animate();
