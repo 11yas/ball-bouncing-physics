@@ -5,8 +5,8 @@ const ctx = canvas.getContext('2d');
 canvas.width = 900;
 canvas.height = 700;
 
-let gravity = 0.098; // Initial gravity value
-let coefficientOfElasticity = 0.8; // Initial coefficient of elasticity
+let gravity = 0.98; // Initial gravity value
+let coefficientOfElasticity = 0.6; // Initial coefficient of elasticity
 
 class Ball {
   constructor(x, y, radius, mass, color) {
@@ -35,31 +35,38 @@ class Ball {
   update() {
     // Apply gravitational force (F = m * g)
     const gravitationalForce = this.mass * gravity;
-    this.dy += gravitationalForce;
 
+    // Calculate acceleration components (F = m * a)
+    const accelerationX = 0; // Assume no external force in the x-direction
+    const accelerationY = gravitationalForce / this.mass;
 
-    // Update position based on velocity
+    // Update velocity using the acceleration (v = u + at)
+    this.dx += accelerationX;
+    this.dy += accelerationY;
+
+    // Update position using the velocity (s = ut + 0.5 * a * t^2)
     this.x += this.dx;
     this.y += this.dy;
 
     // Handle collisions with walls
     if (this.y + this.radius >= canvas.height) {
-      this.dy *= -this.coefficientOfRestitution; // Reverse velocity and apply restitution
-      this.dy += this.mass * gravity; // Apply gravitational force
-      this.y = canvas.height - this.radius; // Adjust position to prevent ball from sinking into the ground
+        this.dy *= -this.coefficientOfRestitution; // Reverse velocity and apply restitution
+        this.dy += gravitationalForce / this.mass; // Apply gravitational force
+        this.y = canvas.height - this.radius; // Adjust position to prevent ball from sinking into the ground
     }
 
     if (this.x + this.radius >= canvas.width || this.x - this.radius <= 0) {
-      this.dx *= -1; // Reverse horizontal velocity to simulate wall collision
+        this.dx *= -1; // Reverse horizontal velocity to simulate wall collision
     }
 
     // Check for collisions with other balls
     for (let otherBall of balls) {
-      if (this !== otherBall) {
-        this.handleBallCollision(otherBall);
-      }
+        if (this !== otherBall) {
+            this.handleBallCollision(otherBall);
+        }
     }
 }
+
   launch(angle, launchSpeed) {
     this.dx = launchSpeed * Math.cos(angle);
     this.dy = launchSpeed * Math.sin(angle);
@@ -73,29 +80,29 @@ class Ball {
     const minDistance = this.radius + otherBall.radius;
 
     if (distance < minDistance) {
-        // Calculate unit normal and tangent vectors
+        // Calculate unit normal vector
         const normalX = distanceX / distance;
         const normalY = distanceY / distance;
-        const tangentX = -normalY;
-        const tangentY = normalX;
 
-        // Calculate relative velocity components along normal and tangent
-        const thisNormalVelocity = this.dx * normalX + this.dy * normalY;
-        const otherNormalVelocity = otherBall.dx * normalX + otherBall.dy * normalY;
-        const thisTangentVelocity = this.dx * tangentX + this.dy * tangentY;
-        const otherTangentVelocity = otherBall.dx * tangentX + otherBall.dy * tangentY;
+        // Calculate relative velocity components along normal vector
+        const relativeVelocityX = otherBall.dx - this.dx;
+        const relativeVelocityY = otherBall.dy - this.dy;
+        const relativeVelocityNormal = relativeVelocityX * normalX + relativeVelocityY * normalY;
 
-        // Calculate new normal velocities using one-dimensional elastic collision equations
-        const thisNewNormalVelocity = (thisNormalVelocity * (this.mass - otherBall.mass) + 2 * otherBall.mass * otherNormalVelocity) / (this.mass + otherBall.mass);
-        const otherNewNormalVelocity = (otherNormalVelocity * (otherBall.mass - this.mass) + 2 * this.mass * thisNormalVelocity) / (this.mass + otherBall.mass);
+        // If balls are moving towards each other (relative velocity along normal vector is negative)
+        if (relativeVelocityNormal < 0) {
+            // Calculate impulse (change in momentum)
+            const impulse = -2 * relativeVelocityNormal / (this.mass + otherBall.mass);
 
-        // Update velocities with the new normal and tangent components
-        this.dx = thisNewNormalVelocity * normalX + thisTangentVelocity * tangentX;
-        this.dy = thisNewNormalVelocity * normalY + thisTangentVelocity * tangentY;
-        otherBall.dx = otherNewNormalVelocity * normalX + otherTangentVelocity * tangentX;
-        otherBall.dy = otherNewNormalVelocity * normalY + otherTangentVelocity * tangentY;
+            // Update velocities based on impulse and mass
+            this.dx -= impulse * otherBall.mass * normalX;
+            this.dy -= impulse * otherBall.mass * normalY;
+            otherBall.dx += impulse * this.mass * normalX;
+            otherBall.dy += impulse * this.mass * normalY;
+        }
     }
 }
+
 
 
 }
@@ -194,7 +201,7 @@ function launchAllBalls(event) {
   const mouseY = event.clientY;
   for (let ball of balls) {
     const angle = Math.atan2(mouseY - ball.y, mouseX - ball.x);
-    ball.launch(angle, 80); // Launch speed can be adjusted
+    ball.launch(angle, 15); // Launch speed can be adjusted
   }
 }
 
