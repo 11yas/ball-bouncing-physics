@@ -33,54 +33,71 @@ class Ball {
   }
 
   update() {
-    this.dy += gravity; // Use the global gravity variable
+    // Apply gravitational force (F = m * g)
+    const gravitationalForce = this.mass * gravity;
+    this.dy += gravitationalForce;
 
-    this.dx *= (1 - 0.01 * this.mass);
 
+    // Update position based on velocity
     this.x += this.dx;
     this.y += this.dy;
 
+    // Handle collisions with walls
     if (this.y + this.radius >= canvas.height) {
-      this.dy *= -this.coefficientOfRestitution;
-      this.dy += this.mass * 0.1;
-      this.y = canvas.height - this.radius;
+      this.dy *= -this.coefficientOfRestitution; // Reverse velocity and apply restitution
+      this.dy += this.mass * gravity; // Apply gravitational force
+      this.y = canvas.height - this.radius; // Adjust position to prevent ball from sinking into the ground
     }
 
     if (this.x + this.radius >= canvas.width || this.x - this.radius <= 0) {
-      this.dx *= -1;
+      this.dx *= -1; // Reverse horizontal velocity to simulate wall collision
     }
 
+    // Check for collisions with other balls
     for (let otherBall of balls) {
       if (this !== otherBall) {
         this.handleBallCollision(otherBall);
       }
     }
-  }
-
+}
   launch(angle, launchSpeed) {
     this.dx = launchSpeed * Math.cos(angle);
     this.dy = launchSpeed * Math.sin(angle);
   }
 
   handleBallCollision(otherBall) {
-    const distanceX = this.x - otherBall.x;
-    const distanceY = this.y - otherBall.y;
+    const distanceX = otherBall.x - this.x;
+    const distanceY = otherBall.y - this.y;
     const distance = Math.sqrt(distanceX * distanceX + distanceY * distanceY);
 
     const minDistance = this.radius + otherBall.radius;
 
     if (distance < minDistance) {
-      const angle = Math.atan2(distanceY, distanceX);
+        // Calculate unit normal and tangent vectors
+        const normalX = distanceX / distance;
+        const normalY = distanceY / distance;
+        const tangentX = -normalY;
+        const tangentY = normalX;
 
-      const tempDx = this.dx;
-      const tempDy = this.dy;
-      const massRatio = this.mass / otherBall.mass;
-      this.dx = otherBall.dx * massRatio + (1 + massRatio) * tempDx * Math.cos(angle) - tempDy * Math.sin(angle) * this.coefficientOfRestitution;
-      this.dy = otherBall.dy * massRatio + (1 + massRatio) * tempDy * Math.sin(angle) + tempDx * Math.cos(angle) * this.coefficientOfRestitution;
-      otherBall.dx = tempDx * massRatio - (1 + massRatio) * otherBall.dx * Math.cos(angle) + otherBall.dy * Math.sin(angle) * this.coefficientOfRestitution;
-      otherBall.dy = tempDy * massRatio - (1 + massRatio) * otherBall.dy * Math.sin(angle) - otherBall.dx * Math.cos(angle) * this.coefficientOfRestitution;
+        // Calculate relative velocity components along normal and tangent
+        const thisNormalVelocity = this.dx * normalX + this.dy * normalY;
+        const otherNormalVelocity = otherBall.dx * normalX + otherBall.dy * normalY;
+        const thisTangentVelocity = this.dx * tangentX + this.dy * tangentY;
+        const otherTangentVelocity = otherBall.dx * tangentX + otherBall.dy * tangentY;
+
+        // Calculate new normal velocities using one-dimensional elastic collision equations
+        const thisNewNormalVelocity = (thisNormalVelocity * (this.mass - otherBall.mass) + 2 * otherBall.mass * otherNormalVelocity) / (this.mass + otherBall.mass);
+        const otherNewNormalVelocity = (otherNormalVelocity * (otherBall.mass - this.mass) + 2 * this.mass * thisNormalVelocity) / (this.mass + otherBall.mass);
+
+        // Update velocities with the new normal and tangent components
+        this.dx = thisNewNormalVelocity * normalX + thisTangentVelocity * tangentX;
+        this.dy = thisNewNormalVelocity * normalY + thisTangentVelocity * tangentY;
+        otherBall.dx = otherNewNormalVelocity * normalX + otherTangentVelocity * tangentX;
+        otherBall.dy = otherNewNormalVelocity * normalY + otherTangentVelocity * tangentY;
     }
-  }
+}
+
+
 }
 
 const addBallButton = document.getElementById('addBallButton');
@@ -94,8 +111,8 @@ function addNewBall() {
   // Randomize ball properties
   const x = Math.random() * canvasWidth;
   const y = Math.random() * canvasHeight / 2; // Start in the top half
-  const radius = Math.random() * 10 + 5;
-  const mass = Math.random() * 3 + 1; // Simulated mass variation
+  const radius = 15;
+  const mass = Math.random() * 10 + 5; // Simulated mass variation
   const color = `rgb(${Math.floor(Math.random() * 256)}, ${Math.floor(Math.random() * 256)}, ${Math.floor(Math.random() * 256)})`;
 
   // Create a new ball object
@@ -111,8 +128,8 @@ function init() {
   for (let i = 0; i < 3; i++) {
     const x = Math.random() * canvas.width;
     const y = Math.random() * canvas.height / 2;
-    const radius = Math.random() * 10 + 10;
-    const mass = Math.random() * 3 + 3;
+    const radius = 15;
+    const mass = Math.random() * 10 + 5;
     const color = `rgb(${Math.floor(Math.random() * 256)}, ${Math.floor(Math.random() * 256)}, ${Math.floor(Math.random() * 256)})`;
     balls.push(new Ball(x, y, radius, mass, color));
   }
@@ -177,7 +194,7 @@ function launchAllBalls(event) {
   const mouseY = event.clientY;
   for (let ball of balls) {
     const angle = Math.atan2(mouseY - ball.y, mouseX - ball.x);
-    ball.launch(angle, 8); // Launch speed can be adjusted
+    ball.launch(angle, 80); // Launch speed can be adjusted
   }
 }
 
